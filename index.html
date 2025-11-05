@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Registro de Comidas · Semáforo</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='45' fill='%230077cc'/%3E%3Ctext x='50' y='60' text-anchor='middle' font-size='60' fill='white'%3E🍽%3C/text%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #0f1115;
+    --card: #171a21;
+    --muted: #a9b1bd;
+    --accent: #3a86ff;
+    --line: #262b36;
+    --good: #2ecc71;
+    --mid:  #f1c40f;
+    --bad:  #e74c3c;
+  }
+  html, body { margin:0; padding:0; background:var(--bg); color:#eef2f7; font-family: -apple-system, system-ui, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji"; }
+  .wrap { max-width: 900px; margin: 0 auto; padding: 16px; }
+  header { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom: 8px; }
+  h1 { font-size: 20px; margin: 0; font-weight: 700; letter-spacing: .2px; }
+  nav { display:flex; gap:8px; }
+  nav button { background: transparent; color:#cdd6e3; border:1px solid var(--line); padding:8px 10px; border-radius:10px; cursor:pointer; }
+  nav button.active { background: var(--accent); color:white; border-color: var(--accent); }
+  .card { background: var(--card); border:1px solid var(--line); border-radius:14px; padding:14px; margin:12px 0; }
+  .section-title { font-size:14px; color: var(--muted); margin-bottom:8px; text-transform:uppercase; letter-spacing:.8px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; }
+  .today-grid { display:grid; grid-template-columns: 1fr; gap:10px; }
+  .meal { background:#11141a; border:1px solid var(--line); padding:10px; border-radius:12px; }
+  .meal-top { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+  .meal .name { font-weight:600; }
+  .rate { display:flex; gap:8px; }
+  .rate button { border:none; cursor:pointer; width:44px; height:44px; border-radius:10px; font-size: 20px; }
+  .g { background: var(--good); }
+  .y { background: var(--mid);  }
+  .r { background: var(--bad);  }
+  .muted { color: var(--muted); }
+  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+  .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  .pill { border:1px solid var(--line); padding:6px 10px; border-radius:999px; background:#10141b; }
+  .small { font-size:12px; }
+  .controls { display:flex; gap:8px; flex-wrap:wrap; }
+  .controls button { background:transparent; color:#cdd6e3; border:1px solid var(--line); padding:8px 10px; border-radius:10px; cursor:pointer; }
+  .week-grid { width:100%; overflow-x:auto; }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { border:1px solid var(--line); padding:8px; text-align:center; }
+  th { position:sticky; top:0; background:#131720; z-index:1; }
+  td .dot { display:inline-block; width:16px; height:16px; border-radius:4px; }
+  .dot.g { background: var(--good); }
+  .dot.y { background: var(--mid); }
+  .dot.r { background: var(--bad); }
+  .dot.none { background: #2b3240; }
+  .calendar { display:grid; grid-template-columns: repeat(7, 1fr); gap:6px; }
+  .daycell { aspect-ratio: 1 / 1; background:#11141a; border:1px solid var(--line); border-radius:8px; padding:6px; display:flex; flex-direction:column; justify-content:space-between; cursor:pointer; }
+  .daycell:hover { outline:1px solid var(--accent); }
+  .daynum { font-size:12px; color:var(--muted); }
+  .heat { height:8px; border-radius:6px; background:#2b3240; }
+  .legend { display:flex; gap:8px; align-items:center; }
+  .legend .box { width:14px; height:14px; border-radius:3px; background:#2b3240; }
+  footer { color:var(--muted); font-size:12px; text-align:center; margin-top: 8px; }
+  .btn-accent { background: var(--accent); color:white; border-color: var(--accent); }
+  .note { width:100%; box-sizing:border-box; margin-top:8px; border-radius:10px; border:1px solid var(--line); background:#0e1218; color:#e9eef6; padding:10px; }
+  .datebar { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .datebar .pill { cursor:pointer; }
+  .cellbtn { background:transparent; border:none; padding:0; cursor:pointer; }
+  .cellbtn .dot { transform: scale(1); transition: transform .05s ease; }
+  .cellbtn:active .dot { transform: scale(1.1); }
+  @media (min-width: 640px) {
+    .today-grid { grid-template-columns: 1fr 1fr; }
+  }
+  input[type="date"] {
+    background:#0e1218; color:#e9eef6; border:1px solid var(--line); border-radius:10px; padding:6px 10px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Registro de Comidas · Semáforo</h1>
+    <nav>
+      <button id="tab-hoy" class="active">Hoy</button>
+      <button id="tab-semana">Semana</button>
+      <button id="tab-mes">Mes</button>
+      <button id="tab-datos">Datos</button>
+    </nav>
+  </header>
+
+  <section id="view-hoy" class="card">
+    <div class="section-title">
+      <span>Puntuar comidas</span>
+      <div class="datebar">
+        <button id="prev-day">◀ Día</button>
+        <span id="date-pill" class="pill mono"></span>
+        <input id="date-picker" type="date" style="display:none;" />
+        <button id="next-day">Día ▶</button>
+        <button id="goto-today" class="btn-accent">Ir a hoy</button>
+      </div>
+    </div>
+    <div class="today-grid" id="today-grid"></div>
+  </section>
+
+  <section id="view-semana" class="card" style="display:none;">
+    <div class="section-title">Semana</div>
+    <div class="controls">
+      <button id="prev-week">◀ Semana anterior</button>
+      <div class="pill mono" id="week-label"></div>
+      <button id="next-week">Semana siguiente ▶</button>
+      <button id="jump-today" class="btn-accent">Ir a hoy</button>
+    </div>
+    <div class="week-grid" id="week-grid" style="margin-top:10px;"></div>
+    <div id="week-stats" class="row small" style="margin-top:8px;"></div>
+    <div id="week-score" class="row small" style="margin-top:6px;"></div>
+  </section>
+
+  <section id="view-mes" class="card" style="display:none;">
+    <div class="section-title">Mes</div>
+    <div class="controls">
+      <button id="prev-month">◀ Mes anterior</button>
+      <div class="pill mono" id="month-label"></div>
+      <button id="next-month">Mes siguiente ▶</button>
+      <button id="jump-month-today" class="btn-accent">Ir a este mes</button>
+    </div>
+    <div class="calendar" id="calendar" style="margin-top:10px;"></div>
+    <div class="legend small muted" style="margin-top:8px;">
+      <span>Promedio diario (🟢2, 🟡1, 🔴0 por comida)</span>
+      <span class="box" style="background:#e74c3c;"></span><span> Bajo</span>
+      <span class="box" style="background:#f39c12;"></span><span> Medio</span>
+      <span class="box" style="background:#2ecc71;"></span><span> Alto</span>
+    </div>
+  </section>
+
+  <section id="view-datos" class="card" style="display:none;">
+    <div class="section-title">Datos</div>
+    <div class="row small">
+      <button id="export">Exportar JSON</button>
+      <button id="export-csv">Exportar CSV</button>
+      <label class="pill">Importar JSON <input id="import" type="file" accept=".json" style="display:none;"></label>
+      <button id="reset" class="danger">Borrar todo</button>
+    </div>
+    <pre id="debug" class="mono small muted" style="white-space:pre-wrap; margin-top:8px;"></pre>
+  </section>
+
+  <footer>
+    Hecho para uso personal · guarda datos en este dispositivo (localStorage).
+  </footer>
+</div>
+
+<script>
+(function(){
+  const MEALS = ["Desayuno","Almuerzo","Merienda","Cena"];
+  const COLORS = { g: "🟢", y:"🟡", r:"🔴" };
+  const SCORE = { g: 2, y: 1, r: 0 };
+  const KEY = "mealLogV1";
+
+  function fmtDate(d){ return d.toISOString().slice(0,10); }
+  function parseDate(str){ const d = new Date(str); d.setHours(0,0,0,0); return d; }
+  function today(){ const d = new Date(); d.setHours(0,0,0,0); return d; }
+  function addDays(d, n){ const x = new Date(d); x.setDate(x.getDate()+n); return x; }
+  function dowES(d){ return ["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"][d.getDay()]; }
+  function monthES(d){ return ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"][d.getMonth()]; }
+  function startOfWeek(d){ const x = new Date(d); const day = (x.getDay()+6)%7; // Lunes=0
+    x.setDate(x.getDate()-day); x.setHours(0,0,0,0); return x; }
+  function startOfMonth(d){ const x = new Date(d.getFullYear(), d.getMonth(), 1); x.setHours(0,0,0,0); return x; }
+
+  function load(){
+    try { 
+      const raw = JSON.parse(localStorage.getItem(KEY)) || {};
+      // Backward compatibility: values as 'g'/'y'/'r' -> {v, note:""}
+      Object.keys(raw).forEach(date => {
+        const day = raw[date];
+        Object.keys(day).forEach(meal => {
+          if(typeof day[meal] === "string"){
+            day[meal] = { v: day[meal], note: "" };
+          } else if (typeof day[meal] === "object" && day[meal] !== null) {
+            if(!("v" in day[meal])) day[meal].v = null;
+            if(!("note" in day[meal])) day[meal].note = "";
+          }
+        });
+      });
+      return raw;
+    } catch(e){ return {}; }
+  }
+  function save(data){ localStorage.setItem(KEY, JSON.stringify(data)); }
+
+  function setEntry(dateStr, meal, val){
+    const data = load();
+    if(!data[dateStr]) data[dateStr] = {};
+    if(!data[dateStr][meal]) data[dateStr][meal] = {v:null, note:""};
+    data[dateStr][meal].v = val; // 'g', 'y', 'r'
+    save(data);
+    renderAll();
+  }
+  function setNote(dateStr, meal, text){
+    const data = load();
+    if(!data[dateStr]) data[dateStr] = {};
+    if(!data[dateStr][meal]) data[dateStr][meal] = {v:null, note:""};
+    data[dateStr][meal].note = String(text).slice(0, 140);
+    save(data);
+  }
+
+  function getEntry(dateStr, meal){
+    const data = load();
+    const e = data[dateStr]?.[meal] || null;
+    if(!e) return null;
+    if(typeof e === "string") return {v:e, note:""};
+    return e;
+  }
+
+  function dayScore(dateStr){
+    const data = load()[dateStr] || {};
+    let sum = 0, count=0;
+    MEALS.forEach(m => {
+      const e = data[m];
+      if(e && e.v){ sum += SCORE[e.v]; count++; }
+    });
+    return {sum, count, avg: count? sum / (2*count) : null}; // avg 0..1
+  }
+
+  // UI State
+  let curDay = today();
+  let curWeekAnchor = today();
+  let curMonthAnchor = today();
+
+  // Tabs
+  function switchTab(id){
+    ["hoy","semana","mes","datos"].forEach(t => {
+      document.getElementById("view-"+t).style.display = (t===id) ? "" : "none";
+      document.getElementById("tab-"+t).classList.toggle("active", t===id);
+    });
+  }
+
+  function setCurrentDay(d){
+    curDay = new Date(d);
+    curDay.setHours(0,0,0,0);
+    document.getElementById("date-pill").textContent = curDay.toLocaleDateString("es-AR", {weekday:"long", year:"numeric", month:"short", day:"numeric"});
+    const dp = document.getElementById("date-picker");
+    dp.value = fmtDate(curDay);
+    renderToday();
+  }
+
+  // Today
+  function renderToday(){
+    const dateStr = fmtDate(curDay);
+    const cont = document.getElementById("today-grid");
+    cont.innerHTML = "";
+    MEALS.forEach(meal => {
+      const e = getEntry(dateStr, meal);
+      const wrap = document.createElement("div");
+      wrap.className = "meal";
+
+      const top = document.createElement("div");
+      top.className = "meal-top";
+
+      const name = document.createElement("div");
+      name.className = "name";
+      name.textContent = meal;
+
+      const rate = document.createElement("div");
+      rate.className = "rate";
+
+      ["g","y","r"].forEach(code => {
+        const btn = document.createElement("button");
+        btn.className = code[0];
+        btn.title = (code==="g"?"Bien":(code==="y"?"Más o menos":"Mal"));
+        btn.textContent = COLORS[code];
+        btn.addEventListener("click", () => setEntry(dateStr, meal, code));
+        rate.appendChild(btn);
+      });
+
+      const current = document.createElement("div");
+      current.className = "pill";
+      const v = e?.v || null;
+      current.textContent = v ? ("Actual: " + COLORS[v]) : "Sin puntuar";
+      current.id = `cur-${meal}`;
+
+      top.appendChild(name);
+      top.appendChild(rate);
+      top.appendChild(current);
+      wrap.appendChild(top);
+
+      const input = document.createElement("textarea");
+      input.className = "note";
+      input.rows = 2;
+      input.placeholder = "Nota (opcional): ej. 'ensalada + pollo' o 'asado con amigos'";
+      input.value = e?.note || "";
+      input.addEventListener("change", (ev)=> setNote(dateStr, meal, ev.target.value));
+      wrap.appendChild(input);
+
+      cont.appendChild(wrap);
+    });
+  }
+
+  // Week
+  function renderWeek(){
+    const start = startOfWeek(curWeekAnchor);
+    const end = addDays(start, 6);
+    document.getElementById("week-label").textContent =
+      `${start.toLocaleDateString("es-AR")} — ${end.toLocaleDateString("es-AR")}`;
+
+    let html = "<table><thead><tr><th>Comida</th>";
+    for(let i=0;i<7;i++){
+      const d = addDays(start,i);
+      html += `<th>${dowES(d)}<br><span class='small muted'>${d.getDate()}/${d.getMonth()+1}</span></th>`;
+    }
+    html += "</tr></thead><tbody>";
+    MEALS.forEach(meal => {
+      html += `<tr><th>${meal}</th>`;
+      for(let i=0;i<7;i++){
+        const d = addDays(start,i);
+        const dateStr = fmtDate(d);
+        const e = getEntry(dateStr, meal);
+        const cls = e?.v ? e.v : "none";
+        const note = (e?.note || "").replace(/"/g, '&quot;');
+        html += `<td title="${note}"><button class="cellbtn" data-date="${dateStr}" data-meal="${meal}"><span class="dot ${cls}"></span></button></td>`;
+      }
+      html += "</tr>";
+    });
+    html += "</tbody></table>";
+    const grid = document.getElementById("week-grid");
+    grid.innerHTML = html;
+    grid.querySelectorAll(".cellbtn").forEach(btn=>{
+      btn.addEventListener("click", (ev)=>{
+        const dateStr = ev.currentTarget.getAttribute("data-date");
+        setCurrentDay(parseDate(dateStr));
+        switchTab("hoy");
+      });
+    });
+
+    // Stats + Weekly Score
+    let greens=0,yellows=0,reds=0,total=0, score=0;
+    for(let i=0;i<7;i++){
+      const d = addDays(start,i);
+      const ds = fmtDate(d);
+      MEALS.forEach(m => {
+        const e = getEntry(ds, m);
+        if(e?.v){ 
+          total++; 
+          if(e.v==="g") greens++; else if(e.v==="y") yellows++; else reds++; 
+          score += SCORE[e.v];
+        }
+      });
+    }
+    const pct = (n)=> total? Math.round(100*n/total):0;
+    document.getElementById("week-stats").innerHTML =
+      `<span class="pill">🟢 ${greens} (${pct(greens)}%)</span>
+       <span class="pill">🟡 ${yellows} (${pct(yellows)}%)</span>
+       <span class="pill">🔴 ${reds} (${pct(reds)}%)</span>
+       <span class="pill">Comidas puntuadas: ${total}/${7*MEALS.length}</span>`;
+    
+    const maxScore = 7 * MEALS.length * 2; // 56
+    const percScore = Math.round(100*score/maxScore);
+    document.getElementById("week-score").innerHTML =
+      `<span class="pill mono">Puntaje semanal: ${score}/${maxScore} · ${percScore}%</span>`;
+  }
+
+  // Month
+  function renderMonth(){
+    const first = startOfMonth(curMonthAnchor);
+    const monthName = `${monthES(first)} ${first.getFullYear()}`;
+    document.getElementById("month-label").textContent = monthName;
+
+    const start = startOfWeek(first); // grid starts Monday of first week
+    const calendar = document.getElementById("calendar");
+    calendar.innerHTML = "";
+
+    for(let i=0;i<42;i++){ // 6 rows x 7 cols
+      const d = addDays(start,i);
+      const ds = fmtDate(d);
+      const {avg} = dayScore(ds);
+      let color = "#2b3240"; // none
+      if(avg !== null){
+        if(avg < 0.34) color = "#e74c3c";
+        else if(avg < 0.67) color = "#f39c12";
+        else color = "#2ecc71";
+      }
+      const cell = document.createElement("div");
+      cell.className = "daycell";
+      cell.setAttribute("data-date", ds);
+      const daynum = document.createElement("div");
+      daynum.className = "daynum";
+      daynum.textContent = d.getDate();
+      const heat = document.createElement("div");
+      heat.className = "heat";
+      heat.style.background = color;
+      const label = document.createElement("div");
+      label.className = "small muted";
+      label.textContent = (d.getMonth()===first.getMonth()) ? "" : "•";
+      cell.appendChild(daynum);
+      cell.appendChild(heat);
+      cell.appendChild(label);
+      cell.addEventListener("click", (ev)=>{
+        const dateStr = ev.currentTarget.getAttribute("data-date");
+        setCurrentDay(parseDate(dateStr));
+        switchTab("hoy");
+      });
+      calendar.appendChild(cell);
+    }
+  }
+
+  // Datos
+  function renderDatos(){
+    const data = load();
+    const keys = Object.keys(data).sort();
+    const total = keys.reduce((acc, k)=> acc + Object.keys(data[k]).length, 0);
+    document.getElementById("debug").textContent =
+      `Registros: ${total}\nDías: ${keys.length}\n`;
+  }
+
+  function renderAll(){
+    renderToday();
+    renderWeek();
+    renderMonth();
+    renderDatos();
+  }
+
+  // CSV export
+  function exportCSV(){
+    const data = load();
+    const rows = [["fecha","comida","rating","score","nota"]];
+    const sanitize = (s)=> String(s||"").replace(/\n/g, " ").trim();
+    Object.keys(data).sort().forEach(date => {
+      MEALS.forEach(m => {
+        const e = data[date]?.[m];
+        if(e){
+          const v = typeof e === "string" ? e : (e.v || "");
+          const note = typeof e === "object" ? (e.note || "") : "";
+          const score = v ? SCORE[v] : "";
+          rows.push([date, m, v, score, sanitize(note)]);
+        }
+      });
+    });
+    const esc = s => `"${String(s).replace(/"/g,'""')}"`;
+    const csv = rows.map(r => r.map(esc).join(",")).join("\n");
+    const blob = new Blob([csv], {type:"text/csv;charset=utf-8;"});
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "comidas_registro.csv";
+    a.click();
+  }
+
+  // Init
+  document.getElementById("tab-hoy").onclick = ()=> switchTab("hoy");
+  document.getElementById("tab-semana").onclick = ()=> switchTab("semana");
+  document.getElementById("tab-mes").onclick = ()=> switchTab("mes");
+  document.getElementById("tab-datos").onclick = ()=> switchTab("datos");
+
+  document.getElementById("prev-week").onclick = ()=> { curWeekAnchor = addDays(startOfWeek(curWeekAnchor), -7); renderWeek(); };
+  document.getElementById("next-week").onclick = ()=> { curWeekAnchor = addDays(startOfWeek(curWeekAnchor), 7); renderWeek(); };
+  document.getElementById("jump-today").onclick = ()=> { curWeekAnchor = today(); renderWeek(); };
+
+  document.getElementById("prev-month").onclick = ()=> { const d = new Date(curMonthAnchor); d.setMonth(d.getMonth()-1); curMonthAnchor = d; renderMonth(); };
+  document.getElementById("next-month").onclick = ()=> { const d = new Date(curMonthAnchor); d.setMonth(d.getMonth()+1); curMonthAnchor = d; renderMonth(); };
+  document.getElementById("jump-month-today").onclick = ()=> { curMonthAnchor = today(); renderMonth(); };
+
+  document.getElementById("export").onclick = ()=> {
+    const blob = new Blob([JSON.stringify(load(), null, 2)], {type:"application/json"});
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "comidas_registro.json";
+    a.click();
+  };
+  document.getElementById("export-csv").onclick = exportCSV;
+
+  document.getElementById("import").onchange = (e)=> {
+    const file = e.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = (evt)=> {
+      try {
+        const data = JSON.parse(evt.target.result);
+        localStorage.setItem(KEY, JSON.stringify(data));
+        renderAll();
+        alert("Importación completa ✅");
+      } catch(err){
+        alert("Archivo inválido ❌");
+      }
+    };
+    reader.readAsText(file);
+  };
+  document.getElementById("reset").onclick = ()=> {
+    if(confirm("¿Seguro que deseas borrar todos los datos? Esta acción no se puede deshacer.")){
+      localStorage.removeItem(KEY);
+      renderAll();
+    }
+  };
+
+  // Date controls
+  document.getElementById("prev-day").onclick = ()=> setCurrentDay(addDays(curDay, -1));
+  document.getElementById("next-day").onclick = ()=> setCurrentDay(addDays(curDay, 1));
+  document.getElementById("goto-today").onclick = ()=> setCurrentDay(today());
+  document.getElementById("date-pill").onclick = ()=> {
+    const dp = document.getElementById("date-picker");
+    dp.showPicker ? dp.showPicker() : dp.click();
+  };
+  document.getElementById("date-picker").onchange = (e)=> {
+    const d = parseDate(e.target.value);
+    setCurrentDay(d);
+  };
+
+  // Seed UI
+  setCurrentDay(today());
+  curWeekAnchor = today();
+  curMonthAnchor = today();
+  renderWeek();
+  renderMonth();
+  renderDatos();
+})();
+</script>
+</body>
+</html>
